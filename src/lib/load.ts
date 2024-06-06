@@ -45,9 +45,26 @@ export async function testLoader() {
   `
   const msg1 = msg(run1)
   
-  const res = await handle(null,
+  const result1 = await handle(null,
     msg1,
     env,
   );
-  return res;
+
+  console.log('result1:\n' + result1.Output?.data.output)
+
+  const run2 = `
+  local s = ""
+
+  for row in db:nrows("SELECT * FROM test") do
+    s = s .. row.id .. ": " .. row.content .. "\\n"
+  end
+
+  return s
+  `
+  const msg2 = msg(run2)
+  // const result2 = await handle2(result1.Memory, msg2, env)
+  const result2 = await handle(result1.Memory, msg2, env)
+  console.log('\nresult2:\n' + result2.Output?.data.output)
+
+  return result2
 }
