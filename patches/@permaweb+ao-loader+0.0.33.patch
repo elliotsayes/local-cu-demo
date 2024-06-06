@@ -1,0 +1,31 @@
+diff --git a/node_modules/@permaweb/ao-loader/dist/index.cjs b/node_modules/@permaweb/ao-loader/dist/index.cjs
+index f7e63a3..1c3bd15 100644
+--- a/node_modules/@permaweb/ao-loader/dist/index.cjs
++++ b/node_modules/@permaweb/ao-loader/dist/index.cjs
+@@ -6376,7 +6376,7 @@ var require_emscripten2 = __commonJS({
+           process["hrtime"] = Date.now;
+         if (!Module2)
+           Module2 = {};
+-        Module2["thisProgram"] = "thisProgram";
++        // Module2["thisProgram"] = "thisProgram";
+         function hashMemory(id) {
+           var ret = 0;
+           var len = _sbrk();
+@@ -11547,7 +11547,7 @@ var require_emscripten3 = __commonJS({
+           return TIME++;
+         }
+         Date.now = deterministicNow;
+-        Module2["thisProgram"] = "thisProgram";
++        // Module2["thisProgram"] = "thisProgram";
+         function hashMemory(id) {
+           var ret = 0;
+           var len = _sbrk(0);
+@@ -16779,7 +16779,7 @@ var require_wasm64_emscripten = __commonJS({
+           return TIME++;
+         }
+         Date.now = deterministicNow;
+-        Module2["thisProgram"] = "thisProgram";
++        // Module2["thisProgram"] = "thisProgram";
+         Module2["addRunDependency"] = addRunDependency;
+         Module2["removeRunDependency"] = removeRunDependency;
+         Module2["FS_createPath"] = FS.createPath;
