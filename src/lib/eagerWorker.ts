@@ -51,7 +51,7 @@ export async function handleRegisterProcess(processId: string) {
     } catch (e) {
       console.error(`Error when updating process ${processId}`, e);
     } finally { // Cooldown
-      await new Promise((resolve) => setTimeout(resolve, 10_000));
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
       interval(); // unawaited
     }
   };
