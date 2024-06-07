@@ -66,7 +66,7 @@ export function Demo() {
           remoteEval.isSuccess && (
             <div>
               <p>
-                Output: {remoteEval.data.output.data}
+                Output: {remoteEval.data.output}
               </p>
               <p>
                 Elapsed: {remoteEval.data.elapsed}ms
