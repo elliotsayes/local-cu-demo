@@ -5,6 +5,7 @@ import { Mutex } from "async-mutex";
 import { Tag } from "./model";
 import Transaction from "arweave/node/lib/transaction";
 import AoLoader from '@permaweb/ao-loader';
+import { Benchmark } from "./benchmark";
 
 const logger = console
 const suUrl = "https://su-router.ao-testnet.xyz";
@@ -12,17 +13,6 @@ const suUrl = "https://su-router.ao-testnet.xyz";
 const handlersCache = new Map();
 const prevResultCache = new Map();
 const mutexes = new Map();
-
-const Benchmark = {
-  measure: () => {
-    const start = Date.now()
-    return {
-      elapsed: () => {
-        return Date.now() - start
-      }
-    }
-  }
-}
 
 export async function resultRoute(request: Request, response: Response) {
   const benchmark = Benchmark.measure();
@@ -278,7 +268,7 @@ export async function loadMessages(moduleId: string, processId: string, fromExcl
     const url = toInclusive === undefined
       ? `${suUrl}/${processId}?from=${fromExclusive}`
       : `${suUrl}/${processId}?from=${fromExclusive}&to=${toInclusive}`;
-    logger.trace(url);
+    // logger.trace(url);
     const response = await fetch(url);
     if (response.ok) {
       const pageResult = await response.json();

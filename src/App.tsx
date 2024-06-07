@@ -1,39 +1,12 @@
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
-import { testLoader } from './lib/load'
-import { handleRegisterProcess } from './lib/eagerWorker'
-
-const testModuleId = "cv7CkMdcQ5XbH9h5G4zCzpI0Gr-CwgEeZQxal9CPUXo"
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Demo } from './Demo'
 
 function App() {
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => {
-          handleRegisterProcess(testModuleId).then(() => {
-            console.log('Done');
-          });
-        }}>
-          Register
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <QueryClientProvider client={new QueryClient()}>
+      <Demo />
+    </QueryClientProvider>
   )
 }
 

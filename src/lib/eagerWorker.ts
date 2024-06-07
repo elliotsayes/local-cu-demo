@@ -2,6 +2,7 @@
 
 import { ResponseKeyCache, WrappedResponseKeyCache } from "./cache";
 import { evaluateMemory } from "./eval";
+import { hashArrayBuffer } from "./hash";
 import { ProcessDef } from "./model";
 import { fetchModuleSourceRequest, fetchProcessDef, loadMessages } from "./result";
 import AoLoader, { Message } from "@permaweb/ao-loader";
@@ -111,33 +112,40 @@ async function updateLocalProcess(processId: string) {
   const memoryFinal = await evaluateMemory(moduleData, memoryInitial, evalMessages, env);
 
   if (memoryFinal === null) {
-    logger.info(`Null memory for ${processId}`);
+    logger.warn(`Null memory for ${processId}`);
     return;
   }
 
   // Update the memory cache with the timestamp of the latest message
   const lastMessageTimestamp = evalMessages[evalMessages.length - 1].Timestamp;
+  logger.info(`Updating memory cache for ${processId}:${lastMessageTimestamp} (SHA256: ${await hashArrayBuffer(memoryFinal)}`);
   await processMemoryCache.put<ArrayBuffer>(
     `${processId}-${lastMessageTimestamp}`,
     memoryFinal,
-    () => Promise.resolve(new Response(memoryFinal))
+    (data) => Promise.resolve(new Response(data))
   );
   lastCachedProcessMemory.set(processId, parseInt(lastMessageTimestamp));
   
   // Clean up the old memory... after anyone might want to access it
-  setTimeout(() => processMemoryCache.bust(`${processId}-${lastMemoryTimestamp}`), 10_000);
+  // setTimeout(() => processMemoryCache.bust(`${processId}-${lastMemoryTimestamp}`), 10_000);
 }
 
 export async function executeMessage(processId: string, message: AoLoader.Message): Promise<AoLoader.HandleResponse | null> {
   logger.info(`Querying process ${processId}`);
   
-  const lastCachedProcessMemory = new Map<string, number>(); // Map(processId, lastEvaluatedMessageTs)
-  if (!lastCachedProcessMemory) {
+  const lastCachedProcessMemoryResult = lastCachedProcessMemory.get(processId);
+  if (!lastCachedProcessMemoryResult) {
     logger.info(`Memory not found for ${processId}`);
     return null;
+  } else {
+    logger.info(`Memory found for ${processId}:${lastCachedProcessMemoryResult}`);
   }
-  const memoryInitial = await processMemoryCache.cached<ArrayBuffer>(processId,(response) => response.arrayBuffer());
+  const memoryInitial = await processMemoryCache.cached<ArrayBuffer>(
+    `${processId}-${lastCachedProcessMemoryResult}`,
+    (response) => response.arrayBuffer(),
+  );
   if (!memoryInitial) throw Error(`Expected memory for ${processId}`);
+  logger.info(`Loaded memory cache for ${processId}:${lastCachedProcessMemoryResult} (SHA256: ${await hashArrayBuffer(memoryInitial)}`);
 
   const processDef = await processDefCache.cached<ProcessDef>(processId, (response) => response.json());
   if (!processDef) throw Error(`Expected processDef for ${processId}`);
@@ -152,7 +160,9 @@ export async function executeMessage(processId: string, message: AoLoader.Messag
     Process: { Id: processId, Owner: processDef.owner, Tags: processDef.tags },
     Module: { Id: processDef, /* Owner: ctx.moduleOwner, Tags: ctx.moduleTags */ } // TODO
   }
-  const result = handle(memoryInitial, message, env);
+  console.info(`Executing message for ${processId}`, message, env);
+  const result = await handle(memoryInitial, message, env);
+  console.info(`Result for ${processId}`, result);
   return result;
 }
 
