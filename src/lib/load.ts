@@ -25,7 +25,6 @@ const msg = (cmd) => ({
   Data: cmd
 })
 
-
 export async function testLoader() {
   const moduleBlob = await fetch(`https://arweave.net/${moduleId}`)
     .then(async (response) => new Buffer(await response.arrayBuffer()));

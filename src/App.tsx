@@ -2,6 +2,9 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 import { testLoader } from './lib/load'
+import { handleRegisterProcess } from './lib/eagerWorker'
+
+const testModuleId = "cv7CkMdcQ5XbH9h5G4zCzpI0Gr-CwgEeZQxal9CPUXo"
 
 function App() {
   return (
@@ -17,11 +20,11 @@ function App() {
       <h1>Vite + React</h1>
       <div className="card">
         <button onClick={() => {
-          testLoader().then((res) => {
-            console.log(res);
+          handleRegisterProcess(testModuleId).then(() => {
+            console.log('Done');
           });
         }}>
-          Test Load
+          Register
         </button>
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR
