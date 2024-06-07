@@ -1,30 +1,27 @@
 import { executeMessage, handleRegisterProcess } from './lib/eagerWorker'
 import { useMutation } from '@tanstack/react-query'
 import { connect } from '@permaweb/aoconnect'
-import { Benchmark } from './lib/benchmark'
 import { queryCmd } from './lib/cmd'
 import { createMessage } from './lib/msg'
 
-const testProcessId = "0RE7SPZ7wDuk__nnLqhSswciuCgJMfLFC5cw0TqRiNI"
+const testProcessId = "T3Dy2pYzx_6h3T9YqCQcwpTKsBlRd9_70lzI9mNA6q4"
+const testAddress = "cKqPkIHDxNe69V7_Jj7bIlmIapCN7q3dkTxqfihKt6k"
 
 export function Demo() {
   const remoteEval = useMutation({
     mutationKey: ['remoteEval', testProcessId],
     mutationFn: async (cmd: string) => {
       const client = connect()
-      
-      const bench = Benchmark.measure()
       const result = await client.dryrun({
         process: testProcessId,
         data: cmd,
         tags: [
-          { name: 'Action', value: 'Eval' }
+          { name: 'Action', value: 'Query' }
         ],
       })
-      const elapsed = bench.elapsed()
       return {
-        output: result.Output,
-        elapsed,
+        result,
+        elapsed: 0,
       }
     },
   })
@@ -39,12 +36,13 @@ export function Demo() {
   const localEval = useMutation({
     mutationKey: ['localEval', testProcessId],
     mutationFn: async () => {
-      const bench = Benchmark.measure()
-      const result = await executeMessage(testProcessId, createMessage(queryCmd))
-      const elapsed = bench.elapsed()
+      const result = await executeMessage(
+        testProcessId,
+        createMessage(testProcessId ,testAddress, queryCmd),
+      )
       return {
-        output: result?.Output,
-        elapsed,
+        result,
+        elapsed: 0,
       }
     },
   })
@@ -66,7 +64,7 @@ export function Demo() {
           remoteEval.isSuccess && (
             <div>
               <p>
-                Output: {remoteEval.data.output}
+                Output: {remoteEval.data.result?.Messages[0]?.Data}
               </p>
               <p>
                 Elapsed: {remoteEval.data.elapsed}ms
@@ -107,7 +105,7 @@ export function Demo() {
           localEval.isSuccess && (
             <div>
               <p>
-                Output: {localEval.data.output}
+                Output: {localEval.data.result?.Messages[0]?.Data}
               </p>
               <p>
                 Elapsed: {localEval.data.elapsed}ms

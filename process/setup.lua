@@ -9,4 +9,20 @@ Db:exec [[
   INSERT INTO test VALUES (NULL, 'Hello ao!!!');
 ]]
 
+Handlers.add(
+  "Query",
+  Handlers.utils.hasMatchingTag("Action", "Query"),
+  function(msg)
+    local s = ""
+    for row in Db:nrows("SELECT * FROM test") do
+      s = s .. row.id .. ": " .. row.content .. "\n"
+    end
+    print(s)
+    Send({
+      Target = msg.From,
+      Data = s
+    })
+  end
+)
+
 return "Loaded Db"

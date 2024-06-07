@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 import { ResponseKeyCache, WrappedResponseKeyCache } from "./cache";
-import { evaluateMemory } from "./eval";
+import { evaluateMessages } from "./eval";
 import { hashArrayBuffer } from "./hash";
 import { ProcessDef } from "./model";
 import { fetchModuleSourceRequest, fetchProcessDef, loadMessages } from "./result";
@@ -16,14 +16,16 @@ const processDefCache = new WrappedResponseKeyCache('process-def');
 const moduleDataCache = new ResponseKeyCache('module-data');
 
 // Maintained by the updater & read by the evaluator
-const lastCachedProcessMemory = new Map<string, number>(); // Map(processId, lastEvaluatedMessageTs)
+const lastCachedProcess = new Map<string, number>(); // Map(processId, lastEvaluatedMessageTs)
 const processMemoryCache = new WrappedResponseKeyCache('process-memory');
+const processMessagesCache = new WrappedResponseKeyCache('messages');
 
 async function initializeCaches() {
   await Promise.all([
     processDefCache.init(),
     moduleDataCache.init(),
     processMemoryCache.init(),
+    processMessagesCache.init(),
   ])
 }
 
@@ -75,28 +77,41 @@ async function updateLocalProcess(processId: string) {
   let memoryInitial: ArrayBuffer | null | undefined;
   let evalMessages: Array<AoLoader.Message>;
 
-  const lastMemoryTimestamp = lastCachedProcessMemory.get(processId);
-  if (lastMemoryTimestamp) {
-    logger.debug(`Getting memory from cache for ${processId}:${lastMemoryTimestamp}`);
+  const lastUpdateTimestamp = lastCachedProcess.get(processId);
+  if (lastUpdateTimestamp) {
+    logger.debug(`Getting memory from cache for ${processId}:${lastUpdateTimestamp}`);
     // Get memory from cache
     memoryInitial = await processMemoryCache.cached(
-      `${processId}-${lastMemoryTimestamp}`,
+      `${processId}-${lastUpdateTimestamp}`,
       (response) => response.arrayBuffer(),
     );
     if (!memoryInitial) {
-      logger.warn(`Memory not found in cache for ${processId}:${lastMemoryTimestamp}`);
+      logger.warn(`Memory not found in cache for ${processId}:${lastUpdateTimestamp}`);
       // Clear last cached memory & try again
-      lastCachedProcessMemory.delete(processId);
+      lastCachedProcess.delete(processId);
       return updateLocalProcess(processId);
     }
     // Get messages since last memory update
-    evalMessages = await loadMessages(processDef.moduleTxId, processId, lastMemoryTimestamp);
+    const newMessages = await loadMessages(processDef.moduleTxId, processId, lastUpdateTimestamp);
+    const oldMessages = await processMessagesCache.cached(
+      processId,
+      (response) => response.json(),
+    );
+    evalMessages = oldMessages.concat(newMessages);
   } else {
     // Start from empty memory
     memoryInitial = null;
     // Get all messages
     evalMessages = await loadMessages(processDef.moduleTxId, processId, 0);
   }
+
+  // Update the messages cache
+  console.info(`Updating messages cache for ${processId}`);
+  await processMessagesCache.put(
+    processId,
+    evalMessages,
+    (data) => Promise.resolve(new Response(JSON.stringify(data))),
+  );
 
   if (evalMessages.length === 0) {
     logger.info(`No messages for ${processId}`);
@@ -109,7 +124,7 @@ async function updateLocalProcess(processId: string) {
     Process: { Id: processId, Owner: processDef.owner, Tags: processDef.tags },
     Module: { Id: processDef, /* Owner: ctx.moduleOwner, Tags: ctx.moduleTags */ } // TODO
   }
-  const memoryFinal = await evaluateMemory(moduleData, memoryInitial, evalMessages, env);
+  const memoryFinal = (await evaluateMessages(moduleData, memoryInitial, evalMessages, env))?.Memory;
 
   if (memoryFinal === null) {
     logger.warn(`Null memory for ${processId}`);
@@ -124,7 +139,7 @@ async function updateLocalProcess(processId: string) {
     memoryFinal,
     (data) => Promise.resolve(new Response(data))
   );
-  lastCachedProcessMemory.set(processId, parseInt(lastMessageTimestamp));
+  lastCachedProcess.set(processId, parseInt(lastMessageTimestamp));
   
   // Clean up the old memory... after anyone might want to access it
   // setTimeout(() => processMemoryCache.bust(`${processId}-${lastMemoryTimestamp}`), 10_000);
@@ -133,19 +148,25 @@ async function updateLocalProcess(processId: string) {
 export async function executeMessage(processId: string, message: AoLoader.Message): Promise<AoLoader.HandleResponse | null> {
   logger.info(`Querying process ${processId}`);
   
-  const lastCachedProcessMemoryResult = lastCachedProcessMemory.get(processId);
-  if (!lastCachedProcessMemoryResult) {
+  const lastUpdateTimestamp = lastCachedProcess.get(processId);
+  if (!lastUpdateTimestamp) {
     logger.info(`Memory not found for ${processId}`);
     return null;
   } else {
-    logger.info(`Memory found for ${processId}:${lastCachedProcessMemoryResult}`);
+    logger.info(`Memory found for ${processId}:${lastUpdateTimestamp}`);
   }
   const memoryInitial = await processMemoryCache.cached<ArrayBuffer>(
-    `${processId}-${lastCachedProcessMemoryResult}`,
+    `${processId}-${lastUpdateTimestamp}`,
     (response) => response.arrayBuffer(),
   );
   if (!memoryInitial) throw Error(`Expected memory for ${processId}`);
-  logger.info(`Loaded memory cache for ${processId}:${lastCachedProcessMemoryResult} (SHA256: ${await hashArrayBuffer(memoryInitial)}`);
+  logger.info(`Loaded memory cache for ${processId}:${lastUpdateTimestamp} (SHA256: ${await hashArrayBuffer(memoryInitial)}`);
+
+  const previousMessages = await processMessagesCache.cached<Array<AoLoader.Message>>(
+    processId,
+    (response) => response.json(),
+  );
+  if (!previousMessages) throw Error(`Expected previous messages for ${processId}`);
 
   const processDef = await processDefCache.cached<ProcessDef>(processId, (response) => response.json());
   if (!processDef) throw Error(`Expected processDef for ${processId}`);
@@ -153,24 +174,19 @@ export async function executeMessage(processId: string, message: AoLoader.Messag
   if (!moduleResponse) throw Error(`Expected moduleData for ${processDef.moduleTxId}`);
 
   const moduleData = await moduleResponse.arrayBuffer();
-  const handle = await AoLoader(moduleData, { format: 'wasm32-unknown-emscripten2' });
-
   // TODO: env
   const env = {
     Process: { Id: processId, Owner: processDef.owner, Tags: processDef.tags },
     Module: { Id: processDef, /* Owner: ctx.moduleOwner, Tags: ctx.moduleTags */ } // TODO
   }
-  console.info(`Executing message for ${processId}`, message, env);
-  const result = await handle(memoryInitial, message, env);
-  console.info(`Result for ${processId}`, result);
-  return result;
+  return await evaluateMessages(moduleData, null, previousMessages.concat([message]), env) ?? null;
 }
 
 export async function handleProcessMessage(request: Request) {
   const processId = '' // TODO
   const message = {} as Message // TODO
 
-  if (!lastCachedProcessMemory.has(processId)) {
+  if (!lastCachedProcess.has(processId)) {
     logger.warn(`No cached memory for ${processId}, forwarding request to ${request.url}`);
     return fetch(request)
   }

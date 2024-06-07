@@ -1,7 +1,7 @@
 import AoLoader from '@permaweb/ao-loader';
 import { hashArrayBuffer } from './hash';
 
-export async function evaluateMemory(
+export async function evaluateMessages(
   moduleData: ArrayBuffer,
   initialMemory: ArrayBuffer | null,
   messages: Array<AoLoader.Message>,
@@ -11,11 +11,11 @@ export async function evaluateMemory(
   const handle = await AoLoader(moduleData, { format: 'wasm32-unknown-emscripten2' });
 
   let workingMemory = initialMemory;
+  let result: AoLoader.HandleResponse | undefined = undefined;
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
     console.log(`Evaluating message`, message)
 
-    let result: AoLoader.HandleResponse | undefined = undefined;
     try {
       result = await handle(workingMemory, message, env);
       console.log(`Successfully evaluated message ${i}`, result, await hashArrayBuffer(result.Memory))
@@ -29,5 +29,5 @@ export async function evaluateMemory(
     }
   }
 
-  return workingMemory;
+  return result;
 }
