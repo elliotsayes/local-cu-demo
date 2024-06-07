@@ -67,9 +67,9 @@ export function Demo() {
               <p>
                 Output: {remoteEval.data.result?.Messages[0]?.Data}
               </p>
-              <p>
+              {/* <p>
                 Elapsed: {remoteEval.data.elapsed}ms
-              </p>
+              </p> */}
             </div>
           )
         }
@@ -92,7 +92,9 @@ export function Demo() {
           }
         </p>
       </div>
-      <div className="card">
+      <div className="card" style={{
+        height: '200px'
+      }}>
         <button
           onClick={() => localEval.mutateAsync()}
           disabled={localEval.isPending || !registration.isSuccess}
@@ -108,9 +110,9 @@ export function Demo() {
               <p>
                 Output: {localEval.data.result?.Messages[0]?.Data}
               </p>
-              <p>
+              {/* <p>
                 Elapsed: {localEval.data.elapsed}ms
-              </p>
+              </p> */}
             </div>
           )
         }
