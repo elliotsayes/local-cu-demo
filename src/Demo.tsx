@@ -94,7 +94,7 @@ export function Demo() {
       <div className="card">
         <button
           onClick={() => localEval.mutateAsync()}
-          disabled={localEval.isPending}
+          disabled={localEval.isPending || !registration.isSuccess}
         >
           Run local eval
         </button>
