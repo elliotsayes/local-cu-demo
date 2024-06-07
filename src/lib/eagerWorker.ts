@@ -117,8 +117,9 @@ async function updateLocalProcess(processId: string) {
 
   // Update the memory cache with the timestamp of the latest message
   const lastMessageTimestamp = evalMessages[evalMessages.length - 1].Timestamp;
-  await processMemoryCache.cached(
+  await processMemoryCache.put<ArrayBuffer>(
     `${processId}-${lastMessageTimestamp}`,
+    memoryFinal,
     () => Promise.resolve(new Response(memoryFinal))
   );
   lastCachedProcessMemory.set(processId, parseInt(lastMessageTimestamp));
@@ -127,7 +128,7 @@ async function updateLocalProcess(processId: string) {
   setTimeout(() => processMemoryCache.bust(`${processId}-${lastMemoryTimestamp}`), 10_000);
 }
 
-async function executeMessage(processId: string, message: AoLoader.Message): Promise<AoLoader.HandleResponse | null> {
+export async function executeMessage(processId: string, message: AoLoader.Message): Promise<AoLoader.HandleResponse | null> {
   logger.info(`Querying process ${processId}`);
   
   const lastCachedProcessMemory = new Map<string, number>(); // Map(processId, lastEvaluatedMessageTs)
