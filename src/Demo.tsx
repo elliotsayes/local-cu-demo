@@ -12,6 +12,7 @@ export function Demo() {
     mutationKey: ['remoteEval', testProcessId],
     mutationFn: async (cmd: string) => {
       const client = connect()
+
       const result = await client.dryrun({
         process: testProcessId,
         data: cmd,
@@ -21,7 +22,7 @@ export function Demo() {
       })
       return {
         result,
-        elapsed: 0,
+        elapsed: undefined,
       }
     },
   })
@@ -42,7 +43,7 @@ export function Demo() {
       )
       return {
         result,
-        elapsed: 0,
+        elapsed: undefined,
       }
     },
   })
